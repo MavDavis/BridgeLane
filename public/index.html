@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Transparent Donations MVP</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body{font-family:sans-serif;margin:24px}
+    .card{border:1px solid #ddd;padding:12px;margin:12px 0}
+  </style>
+</head>
+<body>
+  <h1>Transparent Donations (MVP)</h1>
+  <section id="campaigns"></section>
+
+  <script>
+    async function load() {
+      const res = await fetch('/api/campaigns');
+      const campaigns = await res.json();
+      const el = document.getElementById('campaigns');
+      if (campaigns.length === 0) {
+        el.innerHTML = '<p>No campaigns yet. Create via API.</p>';
+        return;
+      }
+      el.innerHTML = campaigns.map(c => `
+        <div class="card">
+          <h3>${c.name} (Org: ${c.org_name || '—'})</h3>
+          <p>Goal: ${(c.goal/100).toFixed(2)} XLM</p>
+          <button onclick="openDonate(${c.id}, '${encodeURIComponent(c.name)}')">Donate</button>
+          <div id="camp-${c.id}"></div>
+        </div>
+      `).join('');
+    }
+
+    function openDonate(id, name) {
+      const decoded = decodeURIComponent(name);
+      const container = document.getElementById('camp-' + id);
+      container.innerHTML = `
+        <div>
+          <h4>Donate to ${decoded}</h4>
+          <label>Donor name: <input id="donor-${id}"/></label><br/>
+          <label>Amount (cents): <input id="amount-${id}" value="100"/></label><br/>
+          <label>Category: <input id="cat-${id}"/></label><br/>
+          <button onclick="donate(${id})">Send</button>
+          <div id="resp-${id}"></div>
+        </div>
+      `;
+    }
+
+    async function donate(id) {
+      const donor = document.getElementById('donor-' + id).value;
+      const amount = parseInt(document.getElementById('amount-' + id).value, 10);
+      const category = document.getElementById('cat-' + id).value || null;
+      const resp = document.getElementById('resp-' + id);
+      resp.innerText = 'Processing...';
+      const r = await fetch('/api/donate', {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({campaign_id:id, amount, donor_name:donor, category})});
+      const j = await r.json();
+      resp.innerText = JSON.stringify(j);
+    }
+
+    load();
+  </script>
+</body>
+</html>
